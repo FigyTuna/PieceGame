@@ -5,16 +5,19 @@ from pygame.locals import *
 
 
 
-
-
 class actor:
 
-    def __init__(self):
+    def __init__(self, name):
+
+        self.name = name
 
         self.attack = 10
         self.defence = 10
-        self.max_health = 23
-        self.health = self.max_health
+
+        self.hp = Gauge(23)
+        self.mp = Gauge(20)
+
+        self.move = []
 
     def getAttack(self):
         return self.attack
@@ -28,6 +31,9 @@ class actor:
     def getMaxHealth(self):
         return self.max_health
 
+    def displayName(self):
+        return self.name
+
     def displayAttack(self):
         return "Attack: " + str(self.attack)
 
@@ -35,49 +41,76 @@ class actor:
         return "Defence: " + str(self.defence)
 
     def displayHealth(self):
-        return "Health: " + str(self.health) + "/" + str(self.max_health)
+        return "Health: " + str(self.hp.getValue()) + "/" + str(self.hp.getMax)
 
-    def displayHealthBar(self):
+    def displayMp(self):
+        return "MP: " + str(self.mp.getValue()) + "/" + str(self.mp.getMax())
+
+    def addMove(self, m):
+        self.move.append(m)
+
+
+
+class Gauge:
+
+    def __init__(self, value):
+
+        self.max_value = value
+        self.value = self.max_value
+
+    def getValue(self):
+        return self.value
+
+    def getMax(self):
+        return self.max_value
+
+    def inc(self, value):
         
-        ret = "["
-        
-        bar = int((float(self.health) / float(self.max_health)) * 10)
-        
-        if bar == 0 and self.health > 0:
-            bar = 1
+        self.value += value
 
-        for i in range(0, bar):
-            ret += "#"
-        for i in range(0, 10 - bar):
-            ret += " "
+        if self.value > self.max_value:
+            self.value = self.max_value
 
-        return ret + "]"
+    def dec(self, value):
 
-    def display(self):
-        return "Attack: " + str(self.attack) + " - " + "Defence: " + str(self.defence) + " - " + "Health: " + str(self.health) + "/" + str(self.max_health)
+        self.value -= value
 
-    def takeDamage(self, value):
-
-        self.health -= value
-
-        if self.health < 1:
-            self.health = 0
+        if self.value < 1:
+            self.value = 0
             return True
 
         return False
 
-    def heal(self, value):
+    def bar(self, size):
+        
+        ret = "["
+        
+        bar = int((float(self.value) / float(self.max_value)) * size)
+        
+        if bar == 0 and self.value > 0:
+            bar = 1
 
-        self.health += value
+        for i in range(0, bar):
+            ret += "#"
+        for i in range(0, size - bar):
+            ret += " "
 
-        if self.health > self.max_health:
-            self.health = self.max_health
+        return ret + "]"
+
+class Move:
+
+    def __init__(self, name, damage, mp):
+
+        self.name = name
+        self.damage = damage
+        self.mp = mp
 
 
 class button:
 
-    def __init__(self, img, x, y, width, height):
+    def __init__(self, name, img, x, y, width, height):
 
+        self.name = name
         self.img = img
 
         self.x = x
@@ -96,34 +129,46 @@ class button:
     def getCoords(self):
         return self.x, self.y
 
+    def display(self):
+        Zone.blit(self.img, self.getCoords())
+        Zone.blit(Text(self.name), (self.x + 20, self.y + 10))
+
 class StatBox:
 
-    def __init__(self, img, a1, a2, a3):
+    def __init__(self):
 
-        self.img = img
-        self.a1 = a1
-        self.a2 = a2
-        self.a3 = a3
+        self.img = pygame.image.load("img/button.png")
+        self.actors = []
+
+    def addActor(self, a):
+
+        self.actors.append(a)
 
     def display(self, x, y):
 
-        text = FONT.render(stats.a1.displayHealthBar(), True, (50, 0, 0))
-
-
         Zone.blit(self.img, (x, y))
-        Zone.blit(text, (x+20, y+20))
+
+        for i in range(0, len(stats.actors)):
+            Zone.blit(Text(stats.actors[i].displayName()), (x+30, y+20+(i*20)))
+            Zone.blit(Text(stats.actors[i].mp.bar(4)), (x+100, y+20+(i*20)))
+            Zone.blit(Text(stats.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
+
+
+def Text(t):
+    return FONT.render(t, True, (50, 0, 0))
 
 
 pygame.init()
-Zone = pygame.display.set_mode((600, 400))
+Zone = pygame.display.set_mode((800, 600))
 
-buttonImg = pygame.image.load("button2.png")
-boxImg = pygame.image.load("button.png")
+buttonImg = pygame.image.load("img/button2.png")
 
-stats = StatBox(boxImg, actor(), actor(), actor())
+stats = StatBox()
+stats.addActor(actor("Guy"))
+stats.addActor(actor("Bro"))
 
-hpup = button(buttonImg, 10, 50, 123, 50)
-hpdown = button(buttonImg, 10, 100, 123, 50)
+hpup = button("HP Up", buttonImg, 10, 50, 123, 50)
+hpdown = button("HP Down", buttonImg, 10, 100, 123, 50)
 
 FONT = pygame.font.SysFont('monospace', 16)
 
@@ -134,13 +179,12 @@ clock = pygame.time.Clock()
 
 while True:
 
-
-
     Zone.fill((0,200,0))
-    Zone.blit(hpup.getImg(), hpup.getCoords())
-    Zone.blit(hpdown.getImg(), hpdown.getCoords())
 
-    stats.display(10, 200)
+    hpup.display()
+    hpdown.display()
+
+    stats.display(10, 450)
 
     pygame.display.update()
 
@@ -151,9 +195,9 @@ while True:
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
             if hpup.collides(x, y):
-                stats.a1.heal(4)
+                stats.actors[0].hp.inc(4)
             if hpdown.collides(x, y):
-                if stats.a1.takeDamage(7):
+                if stats.actors[0].hp.dec(7):
                     print("You died")
 
     clock.tick(30)
