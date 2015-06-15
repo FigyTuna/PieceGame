@@ -7,9 +7,10 @@ from pygame.locals import *
 
 class actor:
 
-    def __init__(self, name):
+    def __init__(self, name, img):
 
         self.name = name
+        self.img = img
 
         self.attack = 10
         self.defence = 10
@@ -153,6 +154,19 @@ class StatBox:
             Zone.blit(Text(stats.actors[i].mp.bar(4)), (x+100, y+20+(i*20)))
             Zone.blit(Text(stats.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
 
+class field:
+
+    def __init__(self, stats):
+
+        self.stats = stats
+
+    def display(self):
+
+        self.stats.display(10, 450)
+
+        for i in range(0, len(self.stats.actors)):
+            Zone.blit(self.stats.actors[i].img, (30+(i*100), 100))
+
 
 def Text(t):
     return FONT.render(t, True, (50, 0, 0))
@@ -164,8 +178,10 @@ Zone = pygame.display.set_mode((800, 600))
 buttonImg = pygame.image.load("img/button2.png")
 
 stats = StatBox()
-stats.addActor(actor("Guy"))
-stats.addActor(actor("Bro"))
+stats.addActor(actor("Guy", pygame.image.load("img/1.png")))
+stats.addActor(actor("Bro", pygame.image.load("img/2.png")))
+
+f = field(stats)
 
 hpup = button("HP Up", buttonImg, 10, 50, 123, 50)
 hpdown = button("HP Down", buttonImg, 10, 100, 123, 50)
@@ -184,7 +200,7 @@ while True:
     hpup.display()
     hpdown.display()
 
-    stats.display(10, 450)
+    f.display()
 
     pygame.display.update()
 
@@ -195,9 +211,9 @@ while True:
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
             if hpup.collides(x, y):
-                stats.actors[0].hp.inc(4)
+                f.stats.actors[0].hp.inc(4)
             if hpdown.collides(x, y):
-                if stats.actors[0].hp.dec(7):
+                if f.stats.actors[0].hp.dec(7):
                     print("You died")
 
     clock.tick(30)
