@@ -13,34 +13,26 @@ class actor:
         self.name = name
         self.img = img
 
-        self.attack = 10
-        self.defence = 10
+        self.attack = 3
+        self.defence = 2
+        self.speed = 10
 
         self.hp = Gauge(23)
         self.mp = Gauge(20)
 
         self.move = []
 
-    def getAttack(self):
-        return self.attack
+    def setAttack(self, value):
+        self.attack = value
     
-    def getDefence(self):
-        return self.defence
+    def setDefence(self, value):
+        self.defence = value
 
-    def getHealth(self):
-        return self.health
+    def setSpeed(self, value):
+        self.speed = value
 
-    def getMaxHealth(self):
-        return self.max_health
-
-    def displayName(self):
-        return self.name
-
-    def displayAttack(self):
-        return "Attack: " + str(self.attack)
-
-    def displauDefence(self):
-        return "Defence: " + str(self.defence)
+    def setMaxHealth(self, value):
+        self.max_health = value
 
     def displayHealth(self):
         return "Health: " + str(self.hp.getValue()) + "/" + str(self.hp.getMax)
@@ -151,7 +143,7 @@ class StatBox:
         Zone.blit(self.img, (x, y))
 
         for i in range(0, len(self.actors)):
-            Zone.blit(Text(self.actors[i].displayName()), (x+30, y+20+(i*20)))
+            Zone.blit(Text(self.actors[i].name), (x+30, y+20+(i*20)))
             Zone.blit(Text(self.actors[i].mp.bar(6)), (x+120, y+20+(i*20)))
             Zone.blit(Text(self.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
 
@@ -163,7 +155,9 @@ class field:
         self.enemy = enemy
 
         self.b = ButtonField()
-        
+        self.s = Scene()
+
+        self.turn = True
         self.sub_turn = 0
 
         self.drawButtons()
@@ -174,13 +168,18 @@ class field:
 
     def clicked(self, x, y):
 
-        for i in range(0, len(self.b.buttons)):
-            if self.b.buttons[i].collides(x, y):
-                print(self.b.buttons[i].name)
-                self.sub_turn += 1
-                if self.sub_turn >= len(self.stats.actors):
-                    self.sub_turn = 0
-                    self.takeEnemyTurn()
+        if self.turn:
+            for i in range(0, len(self.b.buttons)):
+                if self.b.buttons[i].collides(x, y):
+                    print(self.b.buttons[i].name)
+                    self.s.addAction(Action(True, self.stats.actors[i].move[0], self.stats.actors[i], 0))#PLACEHOLDER MOVE[0] and target 0
+                    self.sub_turn += 1
+                    if self.sub_turn >= len(self.stats.actors):
+                        self.sub_turn = 0
+                        self.takeEnemyTurn()
+                        #self.turn = False
+        else:
+            print("Fun")
         
         self.b.reset()
         self.drawButtons()
@@ -190,6 +189,11 @@ class field:
         for i in range(0, len(self.enemy.actors)):
             choice = random.randint(0, len(self.enemy.actors[i].move) - 1)
             print(self.enemy.actors[i].move[choice].name)
+            self.s.addAction(Action(False, self.enemy.actors[i].move[0], self.enemy.actors[i], 0))
+
+        self.s.arrange()
+        self.s.p()
+        self.s.reset()
         
     def display(self):
 
@@ -202,8 +206,59 @@ class field:
         for i in range(0, len(self.enemy.actors)):
             Zone.blit(self.enemy.actors[i].img, (430+(i*100), 100))
 
-        self.b.display()
+        self.b.display()#Cpnditipm this
 
+class Scene:
+
+    def __init__(self):
+
+        self.actions = []
+
+    def reset(self):
+        self.actions.clear()
+
+    def addAction(self, action):
+
+        self.actions.append(action)
+
+    def arrange(self):
+
+        self.actions = self.readied()
+
+    def readied(self):
+
+        ret = []
+        sp = 100
+
+        while sp > 0:
+            fast = []
+
+            for i in range(0, len(self.actions)):
+                if self.actions[i].user.speed == sp:
+                    fast.append(i)
+
+            while len(fast) > 0:
+                selection = random.randint(0, len(fast) - 1)
+                ret.append(self.actions[fast[selection]])
+                fast.pop(selection)
+
+            sp -= 1
+
+        return ret
+
+    def p(self):
+
+        for i in range(0, len(self.actions)):
+            print(self.actions[i].user.name)
+
+class Action:
+
+    def __init__(self, side, move, user, target):
+
+        self.side = side
+        self.move = move
+        self.user = user
+        self.target = target
 
 class ButtonField:
 
@@ -237,6 +292,9 @@ guy.addMove(Move("Attack", 3, 1))
 guy.addMove(Move("Smash", 5, 4))
 guy.addMove(Move("Boom", 6, 6))
 bro.addMove(Move("Axe", 4, 2))
+
+guy.setSpeed(13)
+bro.setSpeed(7)
 
 stats = StatBox()
 stats.addActor(guy)
