@@ -1,6 +1,7 @@
 import pygame
 import sys
 from pygame.locals import *
+import random
 
 
 
@@ -149,21 +150,20 @@ class StatBox:
 
         Zone.blit(self.img, (x, y))
 
-        for i in range(0, len(stats.actors)):
-            Zone.blit(Text(stats.actors[i].displayName()), (x+30, y+20+(i*20)))
-            Zone.blit(Text(stats.actors[i].mp.bar(6)), (x+120, y+20+(i*20)))
-            Zone.blit(Text(stats.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
+        for i in range(0, len(self.actors)):
+            Zone.blit(Text(self.actors[i].displayName()), (x+30, y+20+(i*20)))
+            Zone.blit(Text(self.actors[i].mp.bar(6)), (x+120, y+20+(i*20)))
+            Zone.blit(Text(self.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
 
 class field:
 
-    def __init__(self, stats):
+    def __init__(self, stats, enemy):
 
         self.stats = stats
-        #self.enemy = enemy (stats)
+        self.enemy = enemy
 
         self.b = ButtonField()
-
-        self.turn = True
+        
         self.sub_turn = 0
 
         self.drawButtons()
@@ -174,26 +174,33 @@ class field:
 
     def clicked(self, x, y):
 
-        choice = 0
         for i in range(0, len(self.b.buttons)):
             if self.b.buttons[i].collides(x, y):
                 print(self.b.buttons[i].name)
-                choice = i
                 self.sub_turn += 1
                 if self.sub_turn >= len(self.stats.actors):
                     self.sub_turn = 0
-                    #Turn changes too.
+                    self.takeEnemyTurn()
+        
         self.b.reset()
         self.drawButtons()
-                #May not need choice.
-        
 
+        
+    def takeEnemyTurn(self):
+        for i in range(0, len(self.enemy.actors)):
+            choice = random.randint(0, len(self.enemy.actors[i].move) - 1)
+            print(self.enemy.actors[i].move[choice].name)
+        
     def display(self):
 
         self.stats.display(10, 450)
+        self.enemy.display(400, 450)
 
         for i in range(0, len(self.stats.actors)):
             Zone.blit(self.stats.actors[i].img, (30+(i*100), 100))
+
+        for i in range(0, len(self.enemy.actors)):
+            Zone.blit(self.enemy.actors[i].img, (430+(i*100), 100))
 
         self.b.display()
 
@@ -228,13 +235,28 @@ bro = actor("Bro", pygame.image.load("img/2.png"))
 
 guy.addMove(Move("Attack", 3, 1))
 guy.addMove(Move("Smash", 5, 4))
+guy.addMove(Move("Boom", 6, 6))
 bro.addMove(Move("Axe", 4, 2))
 
 stats = StatBox()
 stats.addActor(guy)
 stats.addActor(bro)
 
-f = field(stats)
+doofus = actor("Doofus", pygame.image.load("img/3.png"))
+poo = actor("Poo", pygame.image.load("img/4.png"))
+thing = actor("Thing", pygame.image.load("img/5.png"))
+
+doofus.addMove(Move("Chain whip", 4, 1))
+doofus.addMove(Move("Stomp", 6, 4))
+poo.addMove(Move("Throw", 3, 2))
+thing.addMove(Move("Grab", 2, 1))
+
+enemy = StatBox()
+enemy.addActor(doofus)
+enemy.addActor(poo)
+enemy.addActor(thing)
+
+f = field(stats, enemy)
 
 FONT = pygame.font.SysFont('monospace', 16)
 
