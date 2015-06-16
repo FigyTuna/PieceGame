@@ -157,29 +157,47 @@ class field:
         self.b = ButtonField()
         self.s = Scene()
 
-        self.turn = True
+        self.turn = 0
         self.sub_turn = 0
 
         self.drawButtons()
 
     def drawButtons(self):
-        for i in range(0, len(self.stats.actors[self.sub_turn].move)):
-            self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 10+(i*70)))
+        if self.turn == 0:
+            for i in range(0, len(self.stats.actors[self.sub_turn].move)):
+                self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 10+(i*70)))
+        elif self.turn == 1:
+            for i in range(0, len(self.enemy.actors)):
+                self.b.addButton(Button(self.enemy.actors[i].name, 10, 10+(i*70)))
+        elif self.turn == 2:
+            self.b.addButton(Button("Next", 10, 10))
+        
 
     def clicked(self, x, y):
 
-        if self.turn:
+        if self.turn == 0:
             for i in range(0, len(self.b.buttons)):
                 if self.b.buttons[i].collides(x, y):
-                    print(self.b.buttons[i].name)
-                    self.s.addAction(Action(True, self.stats.actors[i].move[0], self.stats.actors[i], 0))#PLACEHOLDER MOVE[0] and target 0
+                    self.s.addAction(Action(True, self.stats.actors[self.sub_turn].move[i], self.stats.actors[self.sub_turn], self.enemy.actors[0]))
+                    self.turn = 1
+                    
+        elif self.turn == 1:
+            for i in range(0, len(self.b.buttons)):
+                if self.b.buttons[i].collides(x, y):
+                    self.s.fixTarget(self.sub_turn, self.enemy.actors[i])
+                    self.turn = 0
+                    
                     self.sub_turn += 1
                     if self.sub_turn >= len(self.stats.actors):
                         self.sub_turn = 0
                         self.takeEnemyTurn()
-                        #self.turn = False
-        else:
-            print("Fun")
+                        self.turn = 2
+                        self.s.readOut()
+                    
+        elif self.turn == 2:
+            if self.s.clicked():
+                self.s.reset()
+                self.turn = 0
         
         self.b.reset()
         self.drawButtons()
@@ -187,13 +205,11 @@ class field:
         
     def takeEnemyTurn(self):
         for i in range(0, len(self.enemy.actors)):
-            choice = random.randint(0, len(self.enemy.actors[i].move) - 1)
-            print(self.enemy.actors[i].move[choice].name)
-            self.s.addAction(Action(False, self.enemy.actors[i].move[0], self.enemy.actors[i], 0))
+            choiceMove = random.randint(0, len(self.enemy.actors[i].move) - 1)
+            choiceTarget = random.randint(0, len(self.stats.actors) - 1)
+            self.s.addAction(Action(False, self.enemy.actors[i].move[choiceMove], self.enemy.actors[i], self.stats.actors[choiceTarget]))
 
         self.s.arrange()
-        self.s.p()
-        self.s.reset()
         
     def display(self):
 
@@ -206,20 +222,26 @@ class field:
         for i in range(0, len(self.enemy.actors)):
             Zone.blit(self.enemy.actors[i].img, (430+(i*100), 100))
 
-        self.b.display()#Cpnditipm this
+        self.b.display()
 
 class Scene:
 
     def __init__(self):
 
         self.actions = []
+        self.count = 0
 
     def reset(self):
         self.actions.clear()
+        self.count = 0
 
     def addAction(self, action):
 
         self.actions.append(action)
+
+    def fixTarget(self, i, target):
+
+        self.actions[i].target = target
 
     def arrange(self):
 
@@ -245,6 +267,24 @@ class Scene:
             sp -= 1
 
         return ret
+
+    def clicked(self):
+
+        if self.count < len(self.actions):
+            self.readOut()
+        elif self.count == len(self.actions):
+            return True
+        return False
+
+    def readOut(self):
+
+        self.actions[self.count].user.mp.dec(self.actions[self.count].move.mp)
+        self.actions[self.count].target.hp.dec(self.actions[self.count].move.damage)
+        
+        print(self.actions[self.count].user.name + " used " + self.actions[self.count].move.name + " on " + self.actions[self.count].target.name + ".")
+        
+        self.count += 1
+        
 
     def p(self):
 
