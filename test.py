@@ -107,17 +107,17 @@ class Move:
         self.mp = mp
 
 
-class button:
+class Button:
 
-    def __init__(self, name, img, x, y, width, height):
+    def __init__(self, name, x, y):
 
         self.name = name
-        self.img = img
+        self.img = pygame.image.load("img/button2.png")
 
         self.x = x
         self.y = y
-        self.width = width
-        self.height = height
+        self.width = 123
+        self.height = 50
 
     def collides(self, x, y):
         if x >= self.x and x < self.x + self.width and y >= self.y and y < self.y + self.height:
@@ -151,7 +151,7 @@ class StatBox:
 
         for i in range(0, len(stats.actors)):
             Zone.blit(Text(stats.actors[i].displayName()), (x+30, y+20+(i*20)))
-            Zone.blit(Text(stats.actors[i].mp.bar(4)), (x+100, y+20+(i*20)))
+            Zone.blit(Text(stats.actors[i].mp.bar(6)), (x+120, y+20+(i*20)))
             Zone.blit(Text(stats.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
 
 class field:
@@ -159,6 +159,34 @@ class field:
     def __init__(self, stats):
 
         self.stats = stats
+        #self.enemy = enemy (stats)
+
+        self.b = ButtonField()
+
+        self.turn = True
+        self.sub_turn = 0
+
+        self.drawButtons()
+
+    def drawButtons(self):
+        for i in range(0, len(self.stats.actors[self.sub_turn].move)):
+            self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 10+(i*70)))
+
+    def clicked(self, x, y):
+
+        choice = 0
+        for i in range(0, len(self.b.buttons)):
+            if self.b.buttons[i].collides(x, y):
+                print(self.b.buttons[i].name)
+                choice = i
+                self.sub_turn += 1
+                if self.sub_turn >= len(self.stats.actors):
+                    self.sub_turn = 0
+                    #Turn changes too.
+        self.b.reset()
+        self.drawButtons()
+                #May not need choice.
+        
 
     def display(self):
 
@@ -166,6 +194,26 @@ class field:
 
         for i in range(0, len(self.stats.actors)):
             Zone.blit(self.stats.actors[i].img, (30+(i*100), 100))
+
+        self.b.display()
+
+
+class ButtonField:
+
+    def __init__(self):
+
+        self.buttons = []
+
+    def addButton(self, b):
+        self.buttons.append(b)
+
+    def reset(self):
+        self.buttons.clear()
+        
+
+    def display(self):         
+        for i in range(0, len(self.buttons)):
+            self.buttons[i].display()
 
 
 def Text(t):
@@ -175,16 +223,18 @@ def Text(t):
 pygame.init()
 Zone = pygame.display.set_mode((800, 600))
 
-buttonImg = pygame.image.load("img/button2.png")
+guy = actor("Guy", pygame.image.load("img/1.png"))
+bro = actor("Bro", pygame.image.load("img/2.png"))
+
+guy.addMove(Move("Attack", 3, 1))
+guy.addMove(Move("Smash", 5, 4))
+bro.addMove(Move("Axe", 4, 2))
 
 stats = StatBox()
-stats.addActor(actor("Guy", pygame.image.load("img/1.png")))
-stats.addActor(actor("Bro", pygame.image.load("img/2.png")))
+stats.addActor(guy)
+stats.addActor(bro)
 
 f = field(stats)
-
-hpup = button("HP Up", buttonImg, 10, 50, 123, 50)
-hpdown = button("HP Down", buttonImg, 10, 100, 123, 50)
 
 FONT = pygame.font.SysFont('monospace', 16)
 
@@ -197,9 +247,6 @@ while True:
 
     Zone.fill((0,200,0))
 
-    hpup.display()
-    hpdown.display()
-
     f.display()
 
     pygame.display.update()
@@ -210,10 +257,6 @@ while True:
             sys.exit()
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            if hpup.collides(x, y):
-                f.stats.actors[0].hp.inc(4)
-            if hpdown.collides(x, y):
-                if f.stats.actors[0].hp.dec(7):
-                    print("You died")
+            f.clicked(x, y)
 
     clock.tick(30)
