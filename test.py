@@ -34,8 +34,11 @@ class actor:
     def setMaxHealth(self, value):
         self.max_health = value
 
+    def isAlive(self):
+        return self.hp.value > 0
+
     def displayHealth(self):
-        return "Health: " + str(self.hp.getValue()) + "/" + str(self.hp.getMax)
+        return "Health: " + str(self.hp.getValue()) + "/" + str(self.hp.getMax())
 
     def displayMp(self):
         return "MP: " + str(self.mp.getValue()) + "/" + str(self.mp.getMax())
@@ -138,6 +141,14 @@ class StatBox:
 
         self.actors.append(a)
 
+    def isAlive(self):
+
+        ret = False
+        for i in range(0, len(self.actors)):
+            if self.actors[i].hp.getValue() > 0:
+                ret = True
+        return ret
+
     def display(self, x, y):
 
         Zone.blit(self.img, (x, y))
@@ -146,6 +157,8 @@ class StatBox:
             Zone.blit(Text(self.actors[i].name), (x+30, y+20+(i*20)))
             Zone.blit(Text(self.actors[i].mp.bar(6)), (x+120, y+20+(i*20)))
             Zone.blit(Text(self.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
+            #Zone.blit(Text(self.actors[i].displayMp()), (x+80, y+20+(i*20)))
+            #Zone.blit(Text(self.actors[i].displayHealth()), (x+190, y+20+(i*20)))
 
 class field:
 
@@ -178,16 +191,22 @@ class field:
         if self.turn == 0:
             for i in range(0, len(self.b.buttons)):
                 if self.b.buttons[i].collides(x, y):
-                    self.s.addAction(Action(True, self.stats.actors[self.sub_turn].move[i], self.stats.actors[self.sub_turn], self.enemy.actors[0]))
-                    self.turn = 1
-                    
+                    if self.stats.actors[self.sub_turn].mp.value >= self.stats.actors[self.sub_turn].move[i].mp:
+                        self.s.addAction(Action(True, self.stats.actors[self.sub_turn].move[i], self.stats.actors[self.sub_turn], self.enemy.actors[0]))
+                        self.turn = 1
+                    else:
+                        print("Not enough MP.")
+                                            
         elif self.turn == 1:
             for i in range(0, len(self.b.buttons)):
                 if self.b.buttons[i].collides(x, y):
-                    self.s.fixTarget(self.sub_turn, self.enemy.actors[i])
+                    self.s.fixTarget(self.s.getLength()-1, self.enemy.actors[i])
                     self.turn = 0
                     
                     self.sub_turn += 1
+                    if not self.sub_turn >= len(self.stats.actors):
+                        self.checkAlive()
+                    
                     if self.sub_turn >= len(self.stats.actors):
                         self.sub_turn = 0
                         self.takeEnemyTurn()
@@ -198,16 +217,51 @@ class field:
             if self.s.clicked():
                 self.s.reset()
                 self.turn = 0
+                self.gameEnder()
+                self.checkAlive()
         
         self.b.reset()
         self.drawButtons()
 
-        
+
+    def checkAlive(self):
+        if not self.stats.actors[self.sub_turn].isAlive():
+            self.sub_turn += 1
+            if not self.sub_turn >= len(self.stats.actors):
+                self.checkAlive()
+
+    def gameEnder(self):
+
+        if not self.stats.isAlive():
+            print("You lose...")
+            pygame.quit()
+            input("")
+            sys.exit()
+        elif not self.enemy.isAlive():
+            print("You win!")
+            pygame.quit()
+            input("")
+            sys.exit()
+            
+    
     def takeEnemyTurn(self):
         for i in range(0, len(self.enemy.actors)):
-            choiceMove = random.randint(0, len(self.enemy.actors[i].move) - 1)
-            choiceTarget = random.randint(0, len(self.stats.actors) - 1)
-            self.s.addAction(Action(False, self.enemy.actors[i].move[choiceMove], self.enemy.actors[i], self.stats.actors[choiceTarget]))
+            if self.enemy.actors[i].isAlive():
+                notDone = True
+                choiceMove = 0
+                choiceTarget = 0
+                while notDone:
+                    notDone = False
+                    choiceMove = random.randint(0, len(self.enemy.actors[i].move) - 1)
+                    if self.enemy.actors[i].move[choiceMove].mp > self.enemy.actors[i].mp.value:
+                        notDone = True
+                notDone = True
+                while notDone:
+                    notDone = False
+                    choiceTarget = random.randint(0, len(self.stats.actors) - 1)
+                    if not self.stats.actors[choiceTarget].isAlive():
+                        notDone = True
+                self.s.addAction(Action(False, self.enemy.actors[i].move[choiceMove], self.enemy.actors[i], self.stats.actors[choiceTarget]))
 
         self.s.arrange()
         
@@ -242,6 +296,10 @@ class Scene:
     def fixTarget(self, i, target):
 
         self.actions[i].target = target
+
+    def getLength(self):
+
+        return len(self.actions)
 
     def arrange(self):
 
