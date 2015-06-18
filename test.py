@@ -8,7 +8,7 @@ import random
 
 class actor:
 
-    def __init__(self, name, img):
+    def __init__(self, name, img, level=1, exp=0):
 
         self.name = name
         self.img = img
@@ -16,13 +16,15 @@ class actor:
         self.animFrame = 0
         self.animSide = 1
 
-        self.level = 1
-        self.exp = 0
+        self.level = level
+        self.exp = exp
         
         self.strength = 10
         self.defense = 10
         self.skill = 10
         self.speed = 10
+        self.health = 10
+        self.magic = 10
         
         self.hp = Gauge(20)
         self.mp = Gauge(10)
@@ -31,11 +33,15 @@ class actor:
 
         self.addMove(Move("Attack", 2, 0))
 
-    def setBaseStats(self, st, de, sk, sp):#Add hp and mp
+    def setBaseStats(self, st, de, sk, sp, hp, mp):
         self.strength = st
         self.defense = de
         self.skill = sp
         self.speed = sp
+        self.health = hp
+        self.magic = mp
+        self.hp.setValue(self.doMath(self.health) * 2)
+        self.mp.setValue(self.doMath(self.magic))
 
     def getStrength(self):
         return self.doMath(self.strength)
@@ -50,19 +56,19 @@ class actor:
         return self.doMath(self.speed)
 
     def doMath(self, var):
-        return int(float(self.level) * (2 - (1 / float(var)))) + var
+        return int(float(self.level) * (2.0 - (1.0 / float(var)))) + var
 
     def takeDamage(self, dmg):
-        self.hp.dec(int((float(dmg) + ((1.0 / float(self.getDefense()) * float(dmg) * float(dmg)))) / 4.0))
+        self.hp.dec(int(float(dmg) / float(self.getDefense()) * 5.0))
 
     def isAlive(self):
         return self.hp.value > 0
 
     def displayHealth(self):
-        return "Health: " + str(self.hp.getValue()) + "/" + str(self.hp.getMax())
+        return str(self.hp.getValue()) + "/" + str(self.hp.getMax())
 
     def displayMp(self):
-        return "MP: " + str(self.mp.getValue()) + "/" + str(self.mp.getMax())
+        return str(self.mp.getValue()) + "/" + str(self.mp.getMax())
 
     def addMove(self, m):
         self.move.append(m)
@@ -107,6 +113,11 @@ class actor:
 class Gauge:
 
     def __init__(self, value):
+
+        self.max_value = value
+        self.value = self.max_value
+
+    def setValue(self, value):
 
         self.max_value = value
         self.value = self.max_value
@@ -204,6 +215,13 @@ class StatBox:
 
         self.img = pygame.image.load("img/button.png")
         self.actors = []
+        self.animFrame = 0
+        self.animOn = True
+
+    def toggleAnim(self, on):
+        self.animOn = on
+        if not on:
+            self.animFrame = 0
 
     def addActor(self, a):
 
@@ -220,13 +238,19 @@ class StatBox:
     def display(self, x, y):
 
         Zone.blit(self.img, (x, y))
+        Zone.blit(Text("MP        HP"), (x+150, y+20))
 
         for i in range(0, len(self.actors)):
-            Zone.blit(Text(self.actors[i].name), (x+30, y+20+(i*20)))
-            Zone.blit(Text(self.actors[i].mp.bar(6)), (x+120, y+20+(i*20)))
-            Zone.blit(Text(self.actors[i].hp.bar(10)), (x+200, y+20+(i*20)))
-            #Zone.blit(Text(self.actors[i].displayMp()), (x+80, y+20+(i*20)))
-            #Zone.blit(Text(self.actors[i].displayHealth()), (x+190, y+20+(i*20)))
+            Zone.blit(Text(self.actors[i].name), (x+30, y+40+(i*20)))
+            if self.animFrame % 200 < 100:
+                Zone.blit(Text(self.actors[i].mp.bar(6)), (x+120, y+40+(i*20)))
+                Zone.blit(Text(self.actors[i].hp.bar(10)), (x+200, y+40+(i*20)))
+            else:
+                Zone.blit(Text(self.actors[i].displayMp()), (x+140, y+40+(i*20)))
+                Zone.blit(Text(self.actors[i].displayHealth()), (x+240, y+40+(i*20)))
+
+        if self.animOn:
+            self.animFrame += 1
 
 class Notify:
 
@@ -268,13 +292,18 @@ class field:
 
     def drawButtons(self):
         if self.turn == 0:
+            self.stats.toggleAnim(True)
+            self.enemy.toggleAnim(True)
             for i in range(0, len(self.stats.actors[self.sub_turn].move)):
-                self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 10+(i*70), self.stats.actors[self.sub_turn].move[i].displayMP()))
+                self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 40+(i*70), self.stats.actors[self.sub_turn].move[i].displayMP()), "What will " + self.stats.actors[self.sub_turn].name + " do?")
         elif self.turn == 1:
             for i in range(0, len(self.enemy.actors)):
-                self.b.addButton(Button(self.enemy.actors[i].name, 10, 10+(i*70)))
+                if self.enemy.actors[i].isAlive():
+                    self.b.addButton(Button(self.enemy.actors[i].name, 10, 40+(i*70)), "Who is the target?")
         elif self.turn == 2:
-            self.b.addButton(Button("Next", 10, 10))
+            self.stats.toggleAnim(False)
+            self.enemy.toggleAnim(False)
+            self.b.addButton(Button("Next", 10, 40))
         
 
     def clicked(self, x, y):
@@ -288,7 +317,7 @@ class field:
                         self.s.addAction(Action(True, self.stats.actors[self.sub_turn].move[i], self.stats.actors[self.sub_turn], self.enemy.actors[0], self.enemy))
                         self.turn = 1
                     else:
-                        print("Not enough MP.")
+                        self.notify.setMessage("Not enough MP.")
                                             
         elif self.turn == 1:
             for i in range(0, len(self.b.buttons)):
@@ -486,15 +515,18 @@ class ButtonField:
     def __init__(self):
 
         self.buttons = []
+        self.title = ""
 
-    def addButton(self, b):
+    def addButton(self, b, title=""):
         self.buttons.append(b)
+        self.title = title
 
     def reset(self):
         self.buttons.clear()
-        
+        self.title = ""
 
-    def display(self):         
+    def display(self):
+        Zone.blit(Text(self.title), (10, 10))
         for i in range(0, len(self.buttons)):
             self.buttons[i].display()
 
@@ -508,42 +540,72 @@ Zone = pygame.display.set_mode((800, 600))
 FONT = pygame.font.SysFont('monospace', 16)
 clock = pygame.time.Clock()
 
+stats = StatBox()
+enemy = StatBox()
+
 #------------------
 
-guy = actor("Guy", pygame.image.load("img/1.png"))
-bro = actor("Bro", pygame.image.load("img/2.png"))
+a = []
 
-guy.addMove(Move("Smash", 5, 4))
-guy.addMove(Move("Boom", 6, 6))
-bro.addMove(Move("Axe", 4, 2))
+a.append(actor("Fighter", pygame.image.load("img/1.png")))
+a.append(actor("Brute", pygame.image.load("img/2.png")))
+a.append(actor("Slasher", pygame.image.load("img/3.png")))
+a.append(actor("Ranger", pygame.image.load("img/4.png")))
+a.append(actor("Soldier", pygame.image.load("img/5.png")))
+a.append(actor("Mage", pygame.image.load("img/6.png")))
+a.append(actor("Warrior", pygame.image.load("img/7.png")))
 
-guy.speed = 13
-bro.speed = 7
+a[0].setBaseStats(12, 10, 8, 10, 12, 8)
+a[1].setBaseStats(14, 12, 6, 8, 13, 7)
+a[2].setBaseStats(9, 6, 12, 11, 11, 11)
+a[3].setBaseStats(6, 6, 13, 12, 11, 11)
+a[4].setBaseStats(12, 8, 12, 8, 10, 10)
+a[5].setBaseStats(8, 9, 12, 11, 8, 14)
+a[6].setBaseStats(12, 12, 8, 8, 12, 8)
 
-doofus = actor("Doofus", pygame.image.load("img/3.png"))
-poo = actor("Poo", pygame.image.load("img/4.png"))
-thing = actor("Thing", pygame.image.load("img/5.png"))
+m1 = Move("Slice", 3, 3)
+m2 = Move("Smash", 5, 4)
+m3 = Move("Shoot", 3, 2)
+m4 = Move("Chain Whip", 4, 5)
+m5 = Move("Magic Shot", 4, 4)
 
-doofus.addMove(Move("Chain whip", 4, 1))
-doofus.addMove(Move("Stomp", 6, 4))
-poo.addMove(Move("Throw", 3, 2))
-thing.addMove(Move("Grab", 2, 1))
+a[0].addMove(m1)
+a[1].addMove(m2)
+a[2].addMove(m4)
+a[2].addMove(m1)
+a[3].addMove(m3)
+a[4].addMove(m1)
+a[4].addMove(m5)
+a[5].addMove(m5)
+a[6].addMove(m1)
+a[6].addMove(m2)
 
-stats = StatBox()
-stats.addActor(doofus)
-stats.addActor(bro)
-stats.addActor(guy)
+chosen = []
 
-enemy = StatBox()
-enemy.addActor(poo)
-enemy.addActor(thing)
+while len(stats.actors) < 3:
+    choice = random.randint(0, 6)
+    again = False
+    for i in range(0, len(chosen)):
+        if choice == chosen[i]:
+            again = True
+    if not again:
+        stats.addActor(a[choice])
+        chosen.append(choice)
+
+
+while len(enemy.actors) < 3:
+    choice = random.randint(0, 6)
+    again = False
+    for i in range(0, len(chosen)):
+        if choice == chosen[i]:
+            again = True
+    if not again:
+        enemy.addActor(a[choice])
+        chosen.append(choice)
+
+#------------------
 
 f = field(stats, enemy)
-
-#------------------
-
-
-
 
 
 while True:
