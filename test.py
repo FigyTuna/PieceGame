@@ -86,7 +86,14 @@ class actor:
             if y < 0 or self.animFrame < 0:
                 y = 0
             x = x * self.animSide
+            if not self.isAlive() and self.animFrame > 20:
+                self.setAnim(3, 0)
             return x, y
+        elif self.animation == 3:
+            y = 40 * self.animFrame
+            if y > 600:
+                y = 600
+            return 0, y
         else:
             return 0, 0
 
@@ -278,7 +285,7 @@ class field:
             for i in range(0, len(self.b.buttons)):
                 if self.b.buttons[i].collides(x, y):
                     if self.stats.actors[self.sub_turn].mp.value >= self.stats.actors[self.sub_turn].move[i].mp:
-                        self.s.addAction(Action(True, self.stats.actors[self.sub_turn].move[i], self.stats.actors[self.sub_turn], self.enemy.actors[0]))
+                        self.s.addAction(Action(True, self.stats.actors[self.sub_turn].move[i], self.stats.actors[self.sub_turn], self.enemy.actors[0], self.enemy))
                         self.turn = 1
                     else:
                         print("Not enough MP.")
@@ -347,7 +354,7 @@ class field:
                     choiceTarget = random.randint(0, len(self.stats.actors) - 1)
                     if not self.stats.actors[choiceTarget].isAlive():
                         notDone = True
-                self.s.addAction(Action(False, self.enemy.actors[i].move[choiceMove], self.enemy.actors[i], self.stats.actors[choiceTarget]))
+                self.s.addAction(Action(False, self.enemy.actors[i].move[choiceMove], self.enemy.actors[i], self.stats.actors[choiceTarget], self.stats))
 
         self.s.arrange()
 
@@ -428,15 +435,35 @@ class Scene:
 
     def readOut(self):
 
-        self.actions[self.count].user.mp.dec(self.actions[self.count].move.mp)
-        self.actions[self.count].target.takeDamage(self.actions[self.count].move.getDamage(self.actions[self.count].user.getStrength(),self.actions[self.count].user.getSkill()))
+        end = False
 
-        self.actions[self.count].user.setAnim(1, 0)
-        self.actions[self.count].target.setAnim(2, -5)
+        for i in range(0, len(self.actions)):
+            if not self.actions[i].altTeam.isAlive():
+                end = True
+                self.count = len(self.actions)
+
+        while not end and not self.actions[self.count].user.isAlive():
+
+            self.count += 1
+            
+            if self.count >= len(self.actions):
+                end = True
+
+
+        if not end:
+
+            while not self.actions[self.count].target.isAlive():
+                self.actions[self.count].target = self.actions[self.count].altTeam.actors[random.randint(0, len(self.actions[self.count].altTeam.actors)-1)]
+
+            self.actions[self.count].user.mp.dec(self.actions[self.count].move.mp)
+            self.actions[self.count].target.takeDamage(self.actions[self.count].move.getDamage(self.actions[self.count].user.getStrength(),self.actions[self.count].user.getSkill()))
+
+            self.actions[self.count].user.setAnim(1, 0)
+            self.actions[self.count].target.setAnim(2, -5)
         
-        f.setMessage(self.actions[self.count].user.name + " used " + self.actions[self.count].move.name + " on " + self.actions[self.count].target.name + ".")
+            f.setMessage(self.actions[self.count].user.name + " used " + self.actions[self.count].move.name + " on " + self.actions[self.count].target.name + ".")
         
-        self.count += 1
+            self.count += 1
         
 
     def p(self):
@@ -446,12 +473,13 @@ class Scene:
 
 class Action:
 
-    def __init__(self, side, move, user, target):
+    def __init__(self, side, move, user, target, altTeam):
 
         self.side = side
         self.move = move
         self.user = user
         self.target = target
+        self.altTeam = altTeam
 
 class ButtonField:
 
