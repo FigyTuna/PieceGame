@@ -12,6 +12,9 @@ class actor:
 
         self.name = name
         self.img = img
+        self.animation = 0
+        self.animFrame = 0
+        self.animSide = 1
 
         self.level = 1
         self.exp = 0
@@ -63,6 +66,34 @@ class actor:
 
     def addMove(self, m):
         self.move.append(m)
+
+    def setAnim(self, a, f):
+        self.animation = a
+        self.animFrame = f
+
+    def anim(self):
+        if self.animation == 1:
+            x = 2 * ( -((self.animFrame - 2) * (self.animFrame)) + 6 )
+            if x < 0:
+                x = 0
+            x = x * self.animSide
+            return x, 0
+        elif self.animation == 2:
+            x = 2 * (((self.animFrame - 2) * (self.animFrame)) - 6 )
+            y = 2 * ( -((self.animFrame - 2) * (self.animFrame)) + 6 )
+            if x > 0 or self.animFrame < 0:
+                x = 0
+            if y < 0 or self.animFrame < 0:
+                y = 0
+            x = x * self.animSide
+            return x, y
+        else:
+            return 0, 0
+
+    def display(self, x, y):
+        fx, fy = self.anim()
+        Zone.blit(self.img, (fx + x, fy + y))
+        self.animFrame += 1
 
 
 
@@ -120,6 +151,9 @@ class Move:
         self.damage = damage
         self.mp = mp
 
+    def displayMP(self):
+        return "MP: " + str(self.mp)
+
     def getDamage(self, attack, skill):
 
         if self.mp == 0:
@@ -130,9 +164,10 @@ class Move:
 
 class Button:
 
-    def __init__(self, name, x, y):
+    def __init__(self, name, x, y, sub = ""):
 
         self.name = name
+        self.sub = sub
         self.img = pygame.image.load("img/button2.png")
 
         self.x = x
@@ -153,7 +188,8 @@ class Button:
 
     def display(self):
         Zone.blit(self.img, self.getCoords())
-        Zone.blit(Text(self.name), (self.x + 20, self.y + 10))
+        Zone.blit(Text(self.name), (self.x + 10, self.y + 10))
+        Zone.blit(Text(self.sub), (self.x + 10, self.y + 26))
 
 class StatBox:
 
@@ -185,6 +221,25 @@ class StatBox:
             #Zone.blit(Text(self.actors[i].displayMp()), (x+80, y+20+(i*20)))
             #Zone.blit(Text(self.actors[i].displayHealth()), (x+190, y+20+(i*20)))
 
+class Notify:
+
+    def __init__(self):
+        self.message = ""
+        self.visible = False
+
+    def setMessage(self, value):
+        self.message = value
+        self.visible = True
+
+    def setInvisible(self):
+        self.visible = False
+
+    def isVisible(self):
+        return self.visible
+
+    def display(self):
+        Zone.blit(Text(self.message), (250, 50))
+
 class field:
 
     def __init__(self, stats, enemy):
@@ -192,8 +247,12 @@ class field:
         self.stats = stats
         self.enemy = enemy
 
+        for i in range(0, len(self.enemy.actors)):
+            self.enemy.actors[i].animSide = -1
+
         self.b = ButtonField()
         self.s = Scene()
+        self.notify = Notify()
 
         self.turn = 0
         self.sub_turn = 0
@@ -203,7 +262,7 @@ class field:
     def drawButtons(self):
         if self.turn == 0:
             for i in range(0, len(self.stats.actors[self.sub_turn].move)):
-                self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 10+(i*70)))
+                self.b.addButton(Button(self.stats.actors[self.sub_turn].move[i].name, 10, 10+(i*70), self.stats.actors[self.sub_turn].move[i].displayMP()))
         elif self.turn == 1:
             for i in range(0, len(self.enemy.actors)):
                 self.b.addButton(Button(self.enemy.actors[i].name, 10, 10+(i*70)))
@@ -212,6 +271,8 @@ class field:
         
 
     def clicked(self, x, y):
+
+        self.notify.setInvisible()
 
         if self.turn == 0:
             for i in range(0, len(self.b.buttons)):
@@ -289,6 +350,9 @@ class field:
                 self.s.addAction(Action(False, self.enemy.actors[i].move[choiceMove], self.enemy.actors[i], self.stats.actors[choiceTarget]))
 
         self.s.arrange()
+
+    def setMessage(self, value):
+        self.notify.setMessage(value)
         
     def display(self):
 
@@ -296,10 +360,13 @@ class field:
         self.enemy.display(400, 450)
 
         for i in range(0, len(self.stats.actors)):
-            Zone.blit(self.stats.actors[i].img, (30+(i*100), 100))
+            self.stats.actors[i].display(30+(i*100), 100)
 
         for i in range(0, len(self.enemy.actors)):
-            Zone.blit(self.enemy.actors[i].img, (430+(i*100), 100))
+            self.enemy.actors[i].display(430+(i*100), 100)
+
+        if self.notify.isVisible():
+            self.notify.display()
 
         self.b.display()
 
@@ -363,8 +430,11 @@ class Scene:
 
         self.actions[self.count].user.mp.dec(self.actions[self.count].move.mp)
         self.actions[self.count].target.takeDamage(self.actions[self.count].move.getDamage(self.actions[self.count].user.getStrength(),self.actions[self.count].user.getSkill()))
+
+        self.actions[self.count].user.setAnim(1, 0)
+        self.actions[self.count].target.setAnim(2, -5)
         
-        print(self.actions[self.count].user.name + " used " + self.actions[self.count].move.name + " on " + self.actions[self.count].target.name + ".")
+        f.setMessage(self.actions[self.count].user.name + " used " + self.actions[self.count].move.name + " on " + self.actions[self.count].target.name + ".")
         
         self.count += 1
         
@@ -422,10 +492,6 @@ bro.addMove(Move("Axe", 4, 2))
 guy.speed = 13
 bro.speed = 7
 
-stats = StatBox()
-stats.addActor(guy)
-stats.addActor(bro)
-
 doofus = actor("Doofus", pygame.image.load("img/3.png"))
 poo = actor("Poo", pygame.image.load("img/4.png"))
 thing = actor("Thing", pygame.image.load("img/5.png"))
@@ -435,8 +501,12 @@ doofus.addMove(Move("Stomp", 6, 4))
 poo.addMove(Move("Throw", 3, 2))
 thing.addMove(Move("Grab", 2, 1))
 
+stats = StatBox()
+stats.addActor(doofus)
+stats.addActor(bro)
+stats.addActor(guy)
+
 enemy = StatBox()
-enemy.addActor(doofus)
 enemy.addActor(poo)
 enemy.addActor(thing)
 
