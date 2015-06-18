@@ -13,26 +13,44 @@ class actor:
         self.name = name
         self.img = img
 
-        self.attack = 3
-        self.defence = 2
+        self.level = 1
+        self.exp = 0
+        
+        self.strength = 10
+        self.defense = 10
+        self.skill = 10
         self.speed = 10
-
-        self.hp = Gauge(23)
-        self.mp = Gauge(20)
+        
+        self.hp = Gauge(20)
+        self.mp = Gauge(10)
 
         self.move = []
 
-    def setAttack(self, value):
-        self.attack = value
-    
-    def setDefence(self, value):
-        self.defence = value
+        self.addMove(Move("Attack", 2, 0))
 
-    def setSpeed(self, value):
-        self.speed = value
+    def setBaseStats(self, st, de, sk, sp):#Add hp and mp
+        self.strength = st
+        self.defense = de
+        self.skill = sp
+        self.speed = sp
 
-    def setMaxHealth(self, value):
-        self.max_health = value
+    def getStrength(self):
+        return self.doMath(self.strength)
+
+    def getDefense(self):
+        return self.doMath(self.defense)
+
+    def getSkill(self):
+        return self.doMath(self.skill)
+
+    def getSpeed(self):
+        return self.doMath(self.speed)
+
+    def doMath(self, var):
+        return int(float(self.level) * (2 - (1 / float(var)))) + var
+
+    def takeDamage(self, dmg):
+        self.hp.dec(int((float(dmg) + ((1.0 / float(self.getDefense()) * float(dmg) * float(dmg)))) / 4.0))
 
     def isAlive(self):
         return self.hp.value > 0
@@ -101,6 +119,13 @@ class Move:
         self.name = name
         self.damage = damage
         self.mp = mp
+
+    def getDamage(self, attack, skill):
+
+        if self.mp == 0:
+            skill = attack
+
+        return int(float(self.damage) * (2 - (1 / float(skill)))) + attack 
 
 
 class Button:
@@ -314,7 +339,7 @@ class Scene:
             fast = []
 
             for i in range(0, len(self.actions)):
-                if self.actions[i].user.speed == sp:
+                if self.actions[i].user.getSpeed() == sp:
                     fast.append(i)
 
             while len(fast) > 0:
@@ -337,7 +362,7 @@ class Scene:
     def readOut(self):
 
         self.actions[self.count].user.mp.dec(self.actions[self.count].move.mp)
-        self.actions[self.count].target.hp.dec(self.actions[self.count].move.damage)
+        self.actions[self.count].target.takeDamage(self.actions[self.count].move.getDamage(self.actions[self.count].user.getStrength(),self.actions[self.count].user.getSkill()))
         
         print(self.actions[self.count].user.name + " used " + self.actions[self.count].move.name + " on " + self.actions[self.count].target.name + ".")
         
@@ -382,17 +407,20 @@ def Text(t):
 
 pygame.init()
 Zone = pygame.display.set_mode((800, 600))
+FONT = pygame.font.SysFont('monospace', 16)
+clock = pygame.time.Clock()
+
+#------------------
 
 guy = actor("Guy", pygame.image.load("img/1.png"))
 bro = actor("Bro", pygame.image.load("img/2.png"))
 
-guy.addMove(Move("Attack", 3, 1))
 guy.addMove(Move("Smash", 5, 4))
 guy.addMove(Move("Boom", 6, 6))
 bro.addMove(Move("Axe", 4, 2))
 
-guy.setSpeed(13)
-bro.setSpeed(7)
+guy.speed = 13
+bro.speed = 7
 
 stats = StatBox()
 stats.addActor(guy)
@@ -414,9 +442,8 @@ enemy.addActor(thing)
 
 f = field(stats, enemy)
 
-FONT = pygame.font.SysFont('monospace', 16)
+#------------------
 
-clock = pygame.time.Clock()
 
 
 
